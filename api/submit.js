@@ -1,88 +1,110 @@
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const DATABASE_ID = '447f904b502d4e908a32504c5030565a';
+import { google } from 'googleapis';
+
+const SPREADSHEET_ID = '1L5Wu9ZXEWVX8in3qodAXdj4bUlsF3hhmk62KFilrtb4';
+
+const PROJECTS = [
+  '00 Warm Up',
+  '01 Instructional',
+  '02 Informational',
+  '03 Invitational',
+];
+
+async function getAuth() {
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  return auth;
+}
 
 export default async function handler(req, res) {
-  // Allow requests from any origin (needed for browser form submissions)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  if (!NOTION_API_KEY) {
-    return res.status(500).json({ error: 'Notion API key not configured' });
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    return res.status(500).json({ error: 'Google credentials not configured' });
   }
 
   const {
-    student, reviewer, assignment, checkpoint, date,
+    project, student, reviewerType, date,
     overallGrade, overallScore,
     ideation, iteration, typography, communication, craft,
     ideationNotes, iterationNotes, typographyNotes, communicationNotes, craftNotes
   } = req.body;
 
-  if (!student) {
-    return res.status(400).json({ error: 'Student name is required' });
-  }
-
-  // Build Notion page properties
-  const properties = {
-    Student: {
-      title: [{ text: { content: student } }]
-    }
-  };
-
-  if (reviewer)   properties.Reviewer   = { rich_text: [{ text: { content: reviewer } }] };
-  if (assignment) properties.Assignment = { rich_text: [{ text: { content: assignment } }] };
-  if (checkpoint) properties.Checkpoint = { rich_text: [{ text: { content: checkpoint } }] };
-  if (date)       properties.Date       = { date: { start: date } };
-
-  if (overallGrade) properties['Overall Grade'] = { select: { name: overallGrade } };
-  if (overallScore !== null && overallScore !== undefined)
-    properties['Overall Score'] = { number: overallScore };
-
-  if (ideation     !== null) properties.Ideation     = { number: ideation };
-  if (iteration    !== null) properties.Iteration    = { number: iteration };
-  if (typography   !== null) properties.Typography   = { number: typography };
-  if (communication !== null) properties.Communication = { number: communication };
-  if (craft        !== null) properties.Craft        = { number: craft };
-
-  if (ideationNotes)       properties['Ideation Notes']       = { rich_text: [{ text: { content: ideationNotes } }] };
-  if (iterationNotes)      properties['Iteration Notes']      = { rich_text: [{ text: { content: iterationNotes } }] };
-  if (typographyNotes)     properties['Typography Notes']     = { rich_text: [{ text: { content: typographyNotes } }] };
-  if (communicationNotes)  properties['Communication Notes']  = { rich_text: [{ text: { content: communicationNotes } }] };
-  if (craftNotes)          properties['Craft Notes']          = { rich_text: [{ text: { content: craftNotes } }] };
+  if (!student) return res.status(400).json({ error: 'Student name is required' });
+  if (!project) return res.status(400).json({ error: 'Project is required' });
+  if (!PROJECTS.includes(project)) return res.status(400).json({ error: 'Invalid project' });
 
   try {
-    const notionRes = await fetch('https://api.notion.com/v1/pages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': '2022-06-28',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        parent: { database_id: DATABASE_ID },
-        properties
-      })
-    });
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
 
-    const data = await notionRes.json();
+    // Check if tab exists, create if not
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const existingSheets = spreadsheet.data.sheets.map(s => s.properties.title);
 
-    if (!notionRes.ok) {
-      console.error('Notion error:', data);
-      return res.status(500).json({ error: data.message || 'Notion API error' });
+    if (!existingSheets.includes(project)) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: project } } }]
+        }
+      });
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `'${project}'!A1`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[
+            'Date', 'Student', 'Reviewer Type',
+            'Overall Grade', 'Overall Score',
+            'Ideation', 'Iteration', 'Typography', 'Communication', 'Craft',
+            'Ideation Notes', 'Iteration Notes', 'Typography Notes',
+            'Communication Notes', 'Craft Notes'
+          ]]
+        }
+      });
     }
 
-    return res.status(200).json({ success: true, url: data.url });
+    const row = [
+      date || new Date().toISOString().split('T')[0],
+      student,
+      reviewerType || '',
+      overallGrade || '',
+      overallScore !== null && overallScore !== undefined ? overallScore : '',
+      ideation !== null && ideation !== undefined ? ideation : '',
+      iteration !== null && iteration !== undefined ? iteration : '',
+      typography !== null && typography !== undefined ? typography : '',
+      communication !== null && communication !== undefined ? communication : '',
+      craft !== null && craft !== undefined ? craft : '',
+      ideationNotes || '',
+      iterationNotes || '',
+      typographyNotes || '',
+      communicationNotes || '',
+      craftNotes || '',
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${project}'!A1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] }
+    });
+
+    return res.status(200).json({
+      success: true,
+      url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`
+    });
 
   } catch (err) {
-    console.error('Server error:', err);
+    console.error('Sheets error:', err);
     return res.status(500).json({ error: err.message });
   }
 }
