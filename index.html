@@ -404,7 +404,18 @@
   <div class="btn-group">
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn" onclick="window.print()">Save PDF</button>
-    <button class="btn primary" onclick="copyResults()">Copy Results</button>
+    <button class="btn" onclick="copyResults()">Copy Results</button>
+    <button class="btn primary" id="notion-btn" onclick="submitToNotion()">Submit to Notion</button>
+  </div>
+</div>
+
+<!-- Notion submit status overlay -->
+<div id="notion-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center;">
+  <div style="background:white;padding:2rem 2.5rem;max-width:380px;width:90%;text-align:center;">
+    <div id="notion-status-icon" style="font-size:2rem;margin-bottom:.75rem;">⏳</div>
+    <div id="notion-status-msg" style="font-family:'DM Mono',monospace;font-size:.85rem;color:#222;line-height:1.5;">Submitting to Notion…</div>
+    <div id="notion-status-link" style="margin-top:1rem;"></div>
+    <button id="notion-close-btn" onclick="closeNotionOverlay()" style="display:none;margin-top:1.25rem;font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.25rem;border:1px solid #ccc;background:white;cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -616,6 +627,111 @@
       out += `${'Total'.padEnd(16)} ${(Math.round(grandScaled*10)/10).toFixed(1).padStart(5)} / 100  ${overall.label} · ${Math.round(grandPct)}% · ${overall.letter}\n`;
     }
     navigator.clipboard.writeText(out).then(() => alert('Results copied!'));
+  }
+
+  // ── Submit to Notion ──
+  const NOTION_DB_ID = '4d85b0fa-89bd-44d5-a173-a7bf305a9d51';
+
+  function getSectionScaledPts(section) {
+    const { max, criteria } = WEIGHTS[section];
+    const rawMax = criteria * 4;
+    let rawPts = 0, anyScored = false;
+    for (const [id, val] of Object.entries(scores)) {
+      const el = document.querySelector(`.score-buttons[data-id="${id}"]`);
+      if (el && el.dataset.section === section && val !== null) { rawPts += val; anyScored = true; }
+    }
+    return anyScored ? Math.round((rawPts / rawMax) * max * 10) / 10 : null;
+  }
+
+  function getNotes(sectionIndex) {
+    const textareas = document.querySelectorAll('.notes-row textarea');
+    return textareas[sectionIndex]?.value?.trim() || '';
+  }
+
+  function getMetaField(index) {
+    return document.querySelectorAll('.meta-field input')[index]?.value?.trim() || '';
+  }
+
+  function closeNotionOverlay() {
+    document.getElementById('notion-overlay').style.display = 'none';
+  }
+
+  async function submitToNotion() {
+    const studentName = getMetaField(0);
+    if (!studentName) { alert('Please enter a student name before submitting.'); return; }
+
+    const overlay  = document.getElementById('notion-overlay');
+    const icon     = document.getElementById('notion-status-icon');
+    const msg      = document.getElementById('notion-status-msg');
+    const link     = document.getElementById('notion-status-link');
+    const closeBtn = document.getElementById('notion-close-btn');
+
+    overlay.style.display = 'flex';
+    icon.textContent  = '⏳';
+    msg.textContent   = 'Submitting to Notion…';
+    link.innerHTML    = '';
+    closeBtn.style.display = 'none';
+
+    const reviewer   = getMetaField(1);
+    const assignment = getMetaField(2);
+    const checkpoint = getMetaField(3);
+    const dateVal    = getMetaField(4);
+
+    const sectionNames = ['ideation','iteration','typography','communication','craft'];
+    const sectionPts = {};
+    let grandScaled = 0, anyScored = false;
+    for (const s of sectionNames) {
+      const pts = getSectionScaledPts(s);
+      sectionPts[s] = pts;
+      if (pts !== null) { grandScaled += pts; anyScored = true; }
+    }
+
+    const grandPct = anyScored ? (grandScaled / GRAND_MAX) * 100 : 0;
+    const overall  = anyScored ? gradeFromPct(grandPct) : { letter: 'F' };
+
+    const payload = {
+      student:     studentName,
+      reviewer,
+      assignment,
+      checkpoint,
+      date:        dateVal || null,
+      overallGrade: overall.letter,
+      overallScore: anyScored ? Math.round(grandScaled * 10) / 10 : null,
+      ideation:      sectionPts.ideation,
+      iteration:     sectionPts.iteration,
+      typography:    sectionPts.typography,
+      communication: sectionPts.communication,
+      craft:         sectionPts.craft,
+      ideationNotes:      getNotes(0),
+      iterationNotes:     getNotes(1),
+      typographyNotes:    getNotes(2),
+      communicationNotes: getNotes(3),
+      craftNotes:         getNotes(4),
+    };
+
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Submission failed');
+
+      icon.textContent = '✅';
+      msg.textContent  = `Submitted! "${studentName}" saved to Typography Checkpoints.`;
+      if (data.url) {
+        link.innerHTML = `<a href="${data.url}" target="_blank" style="font-family:'DM Mono',monospace;font-size:.75rem;color:#2e5f8a;">Open in Notion →</a>`;
+      }
+      closeBtn.style.display = 'inline-block';
+
+    } catch (err) {
+      icon.textContent = '❌';
+      msg.textContent  = `Something went wrong: ${err.message}`;
+      closeBtn.style.display = 'inline-block';
+    }
   }
 
   updateTotals();
