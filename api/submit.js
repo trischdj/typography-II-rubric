@@ -1,5 +1,5 @@
 const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const DATABASE_ID = '4d85b0fa-89bd-44d5-a173-a7bf305a9d51';
+const DATABASE_ID = '447f904b502d4e908a32504c5030565a';
 
 export default async function handler(req, res) {
   // Allow requests from any origin (needed for browser form submissions)
