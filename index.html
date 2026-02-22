@@ -134,6 +134,21 @@
     .scale-cell{min-width:45%;border-bottom:1px solid var(--rule);}
   }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    // Shim: map QRCode.toCanvas to qrcodejs API
+    window.QRCode = window.QRCode || {};
+    QRCode.toCanvas = function(url, opts, cb) {
+      try {
+        const canvas = document.createElement('canvas');
+        new QRCode(canvas, { text: url, width: opts.width || 160, height: opts.width || 160,
+          colorDark: (opts.color && opts.color.dark) || '#000',
+          colorLight: (opts.color && opts.color.light) || '#fff',
+          correctLevel: QRCode.CorrectLevel.M });
+        cb(null, canvas.querySelector ? canvas.querySelector('canvas') || canvas : canvas);
+      } catch(e) { cb(e); }
+    };
+  </script>
 </head>
 <body>
 
@@ -161,20 +176,17 @@
     </select>
   </div>
   <div class="meta-field">
-    <label>Student Name</label>
+    <label>Designer's Name</label>
     <input type="text" id="meta-student" placeholder="—">
   </div>
   <div class="meta-field">
     <label>Reviewer</label>
     <select id="meta-reviewer" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font-family:'DM Sans',sans-serif;font-size:.88rem;color:var(--ink);padding:.15rem 0;outline:none;width:100%;">
       <option value="">— select —</option>
-      <option value="Student">Student</option>
+      <option value="Designer">Designer</option>
+      <option value="Peer">Peer</option>
       <option value="Professor">Professor</option>
     </select>
-  </div>
-  <div class="meta-field">
-    <label>Checkpoint</label>
-    <input type="text" id="meta-checkpoint" placeholder="e.g. Week 4">
   </div>
   <div class="meta-field"><label>Date</label><input type="date" id="meta-date"></div>
 </div>
@@ -426,8 +438,24 @@
   <div class="btn-group">
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn" onclick="window.print()">Save PDF</button>
-    <button class="btn" onclick="copyResults()">Copy Results</button>
-    <button class="btn primary" id="notion-btn" onclick="submitToNotion()">Submit to Notion</button>
+    <button class="btn" onclick="shareResults()">Share Results</button>
+    <button class="btn primary" id="notion-btn" onclick="submitToNotion()">Submit</button>
+  </div>
+</div>
+
+<!-- Share overlay -->
+<div id="share-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:white;padding:2rem 2.5rem;max-width:420px;width:90%;text-align:center;">
+    <div style="font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:.5rem;">Share Results</div>
+    <div id="share-designer" style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.1rem;color:#111;margin-bottom:.25rem;"></div>
+    <div id="share-project" style="font-family:'DM Mono',monospace;font-size:.75rem;color:#888;margin-bottom:1.25rem;"></div>
+    <div id="share-qr" style="margin:0 auto 1.25rem;width:160px;height:160px;"></div>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+      <input id="share-url" type="text" readonly style="flex:1;font-family:'DM Mono',monospace;font-size:.65rem;padding:.4rem .6rem;border:1px solid #ddd;color:#444;outline:none;">
+      <button onclick="copyShareUrl()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;padding:.4rem .75rem;border:1px solid #222;background:#222;color:white;cursor:pointer;">Copy</button>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:#bbb;margin-bottom:1.25rem;">Anyone with this link can view the results</div>
+    <button onclick="closeShareOverlay()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem 1.25rem;border:1px solid #ccc;background:white;cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -772,6 +800,156 @@
       closeBtn.style.display = 'inline-block';
     }
   }
+
+  // ── Share Results ──────────────────────────────────────────────────────
+
+  function shareResults() {
+    const project      = document.getElementById('meta-project')?.value || '';
+    const studentName  = document.getElementById('meta-student')?.value?.trim() || '';
+    const reviewerType = document.getElementById('meta-reviewer')?.value || '';
+    const dateVal      = document.getElementById('meta-date')?.value || '';
+
+    if (!studentName) { alert('Please enter a designer name before sharing.'); return; }
+
+    const data = {
+      p:  project,
+      d:  studentName,
+      r:  reviewerType,
+      dt: dateVal,
+      s:  {...scores},
+      n:  Array.from(document.querySelectorAll('.notes-row textarea')).map(t => t.value.trim()),
+      g:  getOverallGrade().letter,
+    };
+
+    const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
+    const url = `${location.origin}${location.pathname}?r=${encoded}`;
+
+    document.getElementById('share-overlay').style.display = 'flex';
+    document.getElementById('share-designer').textContent = studentName;
+    document.getElementById('share-project').textContent  = project || 'No project selected';
+    document.getElementById('share-url').value = url;
+
+    // QR code
+    const qrEl = document.getElementById('share-qr');
+    qrEl.innerHTML = '';
+    QRCode.toCanvas(url, { width: 160, margin: 1, color: { dark: '#111', light: '#fff' } },
+      (err, canvas) => { if (!err) qrEl.appendChild(canvas); });
+  }
+
+  function copyShareUrl() {
+    navigator.clipboard.writeText(document.getElementById('share-url').value).then(() => {
+      const btn = event.target;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+
+  function closeShareOverlay() {
+    document.getElementById('share-overlay').style.display = 'none';
+  }
+
+  // ── Read-only Results View ─────────────────────────────────────────────
+
+  function gradeColor(g) {
+    return { A:'#1a4d1a','A−':'#1a4d1a','B+':'#2e5f8a',B:'#2e5f8a','B−':'#2e5f8a',
+             'C+':'#8a6800',C:'#8a6800','C−':'#8a6800',
+             'D+':'#8a3800',D:'#8a3800','D−':'#8a3800',F:'#2a2a2a' }[g] || '#222';
+  }
+
+  const CRIT_TO_SEC = {
+    'brief':'ideation','benchmarks':'ideation','typeface-studies':'ideation',
+    'hierarchy-experiments':'ideation','concept-range':'ideation',
+    'exploration':'iteration','refinement':'iteration','feedback-log':'iteration',
+    'typeface-fit':'typography','size-role':'typography','style-emphasis':'typography',
+    'letter-spacing':'typography','line-spacing':'typography','paragraph-form':'typography',
+    'structure':'typography','hierarchy':'typography','affordances':'typography',
+    'concept-clarity':'communication','context-testing':'communication','symbol-clarity':'communication',
+    'craft-eval':'craft','craft-preflight':'craft','craft-detail':'craft'
+  };
+
+  const CRIT_LABELS = {
+    'brief':'Design Brief','benchmarks':'Benchmarks','typeface-studies':'Typeface Studies',
+    'hierarchy-experiments':'Hierarchy Experiments','concept-range':'Concept Range',
+    'exploration':'Exploration Set','refinement':'Refinement Set','feedback-log':'Feedback Log',
+    'typeface-fit':'Typeface Fit','size-role':'Size + Role','style-emphasis':'Style + Emphasis',
+    'letter-spacing':'Letter + Word Spacing','line-spacing':'Width + Line Spacing',
+    'paragraph-form':'Paragraph Form','structure':'Structure','hierarchy':'Hierarchy',
+    'affordances':'Affordances','concept-clarity':'Concept Clarity',
+    'context-testing':'Context Testing','symbol-clarity':'Symbol Clarity',
+    'craft-eval':'Self-Evaluation','craft-preflight':'Technical Preflight','craft-detail':'Detail Check'
+  };
+
+  const SEC_LABELS = {
+    ideation:'Ideation', iteration:'Iteration', typography:'Typography',
+    communication:'Communication', craft:'Craft'
+  };
+  const SEC_ORDER = ['ideation','iteration','typography','communication','craft'];
+  const NOTE_LABELS = ['Ideation Notes','Iteration Notes','Typography Notes','Communication Notes','Craft Notes'];
+
+  function loadSharedResults() {
+    const encoded = new URLSearchParams(location.search).get('r');
+    if (!encoded) return;
+
+    try {
+      const data = JSON.parse(decodeURIComponent(atob(encoded)));
+      const gc = gradeColor(data.g);
+
+      // Build section rows
+      let sectionsHtml = '';
+      for (const sec of SEC_ORDER) {
+        const scored = Object.entries(data.s || {})
+          .filter(([id, v]) => CRIT_TO_SEC[id] === sec && v !== null);
+        if (!scored.length) continue;
+
+        const avg = scored.reduce((a,[,v]) => a + v, 0) / scored.length;
+        const g = gradeFromPct(avg * 25);
+
+        const rows = scored.map(([id, val]) => `
+          <div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f2f2f2;">
+            <span style="font-size:.78rem;color:#555;">${CRIT_LABELS[id] || id}</span>
+            <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:.9rem;">${val}</span>
+          </div>`).join('');
+
+        sectionsHtml += `
+          <div style="margin-bottom:1.25rem;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.4rem;">
+              <span style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;">${SEC_LABELS[sec]}</span>
+              <span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:700;color:${gc};">${g.letter}</span>
+            </div>
+            ${rows}
+          </div>`;
+      }
+
+      // Notes
+      let notesHtml = (data.n || []).map((n, i) => n ? `
+        <div style="margin-bottom:.85rem;">
+          <div style="font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin-bottom:.3rem;">${NOTE_LABELS[i]}</div>
+          <div style="font-size:.8rem;color:#333;line-height:1.55;">${n}</div>
+        </div>` : '').join('');
+
+      document.body.innerHTML = `
+        <div style="margin:0;background:#f4f4f4;min-height:100vh;display:flex;justify-content:center;padding:2rem 1rem;">
+          <div style="background:white;max-width:460px;width:100%;align-self:flex-start;box-shadow:0 2px 16px rgba(0,0,0,.09);">
+            <div style="background:#111;padding:1.5rem 1.75rem;">
+              <div style="font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-bottom:.3rem;">Design Check · Results</div>
+              <div style="font-family:'DM Sans',sans-serif;font-size:1.35rem;font-weight:700;color:white;margin-bottom:.2rem;">${data.d || '—'}</div>
+              <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:#666;">${[data.p, data.r, data.dt].filter(Boolean).join(' · ')}</div>
+            </div>
+            <div style="background:${gc};padding:.9rem 1.75rem;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:700;color:white;letter-spacing:.04em;text-transform:uppercase;">Overall</span>
+              <span style="font-family:'DM Mono',monospace;font-size:1.75rem;font-weight:700;color:white;">${data.g || '—'}</span>
+            </div>
+            <div style="padding:1.25rem 1.75rem 0;">${sectionsHtml}</div>
+            ${notesHtml ? `<div style="padding:.75rem 1.75rem 1.25rem;border-top:1px solid #eee;">${notesHtml}</div>` : ''}
+            <div style="padding:.6rem 1.75rem;border-top:1px solid #eee;font-family:'DM Mono',monospace;font-size:.58rem;color:#ccc;text-align:center;">Design Check</div>
+          </div>
+        </div>`;
+    } catch(e) {
+      document.body.innerHTML = '<div style="padding:2rem;font-family:monospace;color:#999;">Invalid or expired link.</div>';
+    }
+  }
+
+  loadSharedResults();
 
   updateTotals();
 </script>
