@@ -134,19 +134,17 @@
     .scale-cell{min-width:45%;border-bottom:1px solid var(--rule);}
   }
 </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    // Shim: map QRCode.toCanvas to qrcodejs API
-    window.QRCode = window.QRCode || {};
-    QRCode.toCanvas = function(url, opts, cb) {
-      try {
-        const canvas = document.createElement('canvas');
-        new QRCode(canvas, { text: url, width: opts.width || 160, height: opts.width || 160,
-          colorDark: (opts.color && opts.color.dark) || '#000',
-          colorLight: (opts.color && opts.color.light) || '#fff',
-          correctLevel: QRCode.CorrectLevel.M });
-        cb(null, canvas.querySelector ? canvas.querySelector('canvas') || canvas : canvas);
-      } catch(e) { cb(e); }
+    window.QRCode = {
+      toCanvas: function(url, opts, cb) {
+        const size = opts.width || 160;
+        const img = document.createElement('img');
+        img.src = `https://chart.googleapis.com/chart?chs=${size}x${size}&cht=qr&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+        img.width = size;
+        img.height = size;
+        img.style.display = 'block';
+        cb(null, img);
+      }
     };
   </script>
 </head>
@@ -833,7 +831,7 @@
     const qrEl = document.getElementById('share-qr');
     qrEl.innerHTML = '';
     QRCode.toCanvas(url, { width: 160, margin: 1, color: { dark: '#111', light: '#fff' } },
-      (err, canvas) => { if (!err) qrEl.appendChild(canvas); });
+      (err, el) => { if (!err) qrEl.appendChild(el); });
   }
 
   function copyShareUrl() {
