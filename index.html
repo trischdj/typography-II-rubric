@@ -135,50 +135,218 @@
   }
 </style>
   <script>
-  // Minimal self-contained QR code generator
-  // Generates a QR code as an SVG string — no external requests needed
-  window.QRCode = {
-    toCanvas: function(url, opts, cb) {
-      const size = opts.width || 160;
-      // Use a data URI SVG via qr-svg approach
-      const div = document.createElement('div');
-      div.style.width = size + 'px';
-      div.style.height = size + 'px';
-      div.style.background = '#fff';
-      div.style.display = 'flex';
-      div.style.alignItems = 'center';
-      div.style.justifyContent = 'center';
-      div.style.fontSize = '10px';
-      div.style.fontFamily = 'monospace';
-      div.style.color = '#888';
-      div.style.border = '1px solid #eee';
-      div.style.boxSizing = 'border-box';
-      div.style.textAlign = 'center';
-      div.style.padding = '8px';
-      div.style.lineHeight = '1.4';
-      // Fall back to showing the URL as text + instructions
-      div.innerHTML = `<div>Scan not available —<br>use the Copy button<br>to share the link</div>`;
 
-      // Try loading qr library dynamically
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-      script.onload = function() {
-        QRCodeLib.toDataURL(url, { width: size, margin: 1, color: { dark: '#111111', light: '#ffffff' } })
-          .then(dataUrl => {
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.width = size;
-            img.height = size;
-            div.innerHTML = '';
-            div.appendChild(img);
-          }).catch(() => {});
-      };
-      script.onerror = function() {}; // keep fallback text
-      document.head.appendChild(script);
+(function(w){
+// Minimal QR Code encoder — byte mode, version 1-10, EC level M
+// Inlined directly — zero external dependencies
 
-      cb(null, div);
+const GF_EXP=new Uint8Array(512),GF_LOG=new Uint8Array(256);
+(function(){let x=1;for(let i=0;i<255;i++){GF_EXP[i]=x;GF_LOG[x]=i;x<<=1;if(x&256)x^=285;}for(let i=255;i<512;i++)GF_EXP[i]=GF_EXP[i-255];})();
+const gm=(a,b)=>(a&&b)?GF_EXP[GF_LOG[a]+GF_LOG[b]]:0;
+function genpoly(n){let p=[1];for(let i=0;i<n;i++){const q=new Array(p.length+1).fill(0);for(let j=0;j<p.length;j++){q[j]^=gm(p[j],1);q[j+1]^=gm(p[j],GF_EXP[i]);}p=q;}return p;}
+function rsencode(data,n){const g=genpoly(n),out=[...data,...new Array(n).fill(0)];for(let i=0;i<data.length;i++){const c=out[i];if(c)for(let j=0;j<g.length;j++)out[i+j]^=gm(g[j],c);}return out.slice(data.length);}
+
+// Version capacity table [version][EC level M] = {dc, ec, blocks}
+// dc=data codewords, ec=ec codewords per block, bl=blocks
+const VCAP=[null,
+  {dc:16,ec:10,bl:1},{dc:28,ec:16,bl:1},{dc:44,ec:26,bl:2},{dc:64,ec:18,bl:2},
+  {dc:86,ec:24,bl:2},{dc:108,ec:16,bl:4},{dc:124,ec:18,bl:4},{dc:154,ec:22,bl:4},
+  {dc:182,ec:22,bl:5},{dc:216,ec:26,bl:6},{dc:254,ec:24,bl:8},{dc:290,ec:28,bl:8},
+  {dc:334,ec:22,bl:11},{dc:365,ec:20,bl:11},{dc:415,ec:30,bl:11},{dc:453,ec:24,bl:13},
+  {dc:507,ec:28,bl:14},{dc:563,ec:28,bl:16},{dc:627,ec:26,bl:19},{dc:669,ec:28,bl:21}
+];
+
+function getVersion(len){
+  const bytes=len+3; // approximate overhead
+  for(let v=1;v<=20;v++){if(VCAP[v]&&VCAP[v].dc>=bytes)return v;}
+  return 20;
+}
+
+function makeBits(data,version){
+  const cap=VCAP[version];
+  const bits=[];
+  const push=(v,n)=>{for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);};
+  push(4,4); // byte mode
+  push(data.length,8); // char count
+  for(const b of data)push(b,8);
+  push(0,4); // terminator
+  while(bits.length%8)bits.push(0);
+  const bytes=[];
+  for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];bytes.push(b);}
+  const pad=[236,17];
+  while(bytes.length<cap.dc){bytes.push(pad[(bytes.length-Math.ceil((bits.length)/8))%2]);}
+  return bytes;
+}
+
+function interleave(data,version){
+  const cap=VCAP[version];
+  const bsize=Math.floor(cap.dc/cap.bl);
+  const blocks=[];
+  let pos=0;
+  for(let b=0;b<cap.bl;b++){
+    const sz=b<(cap.dc%cap.bl)?bsize+1:bsize;
+    blocks.push(data.slice(pos,pos+sz));
+    pos+=sz;
+  }
+  const ecblocks=blocks.map(b=>rsencode(b,cap.ec));
+  const out=[];
+  for(let i=0;i<Math.max(...blocks.map(b=>b.length));i++)for(const b of blocks)if(i<b.length)out.push(b[i]);
+  for(let i=0;i<cap.ec;i++)for(const b of ecblocks)out.push(b[i]);
+  return out;
+}
+
+// QR matrix placement
+const SIZE=[null,21,25,29,33,37,41,45,49,53,57];
+
+function makeMatrix(version){
+  const n=SIZE[version];
+  const m=Array.from({length:n},()=>new Array(n).fill(-1));
+  const mark=(r,c,v)=>{if(r>=0&&r<n&&c>=0&&c<n)m[r][c]=v;};
+
+  // Finder patterns
+  function finder(r,c){
+    for(let i=0;i<7;i++)for(let j=0;j<7;j++){
+      mark(r+i,c+j,(i==0||i==6||j==0||j==6)?1:(i>=2&&i<=4&&j>=2&&j<=4)?1:0);
     }
-  };
+    // separator
+    for(let i=-1;i<=7;i++){mark(r-1,c+i,0);mark(r+7,c+i,0);mark(r+i,c-1,0);mark(r+i,c+7,0);}
+  }
+  finder(0,0);finder(0,n-7);finder(n-7,0);
+
+  // Timing
+  for(let i=8;i<n-8;i++){mark(6,i,i%2==0?1:0);mark(i,6,i%2==0?1:0);}
+
+  // Dark module
+  mark(4*version+9,8,1);
+
+  // Format info placeholders
+  for(let i=0;i<=8;i++){mark(8,i,-2);mark(i,8,-2);}
+  for(let i=n-8;i<n;i++){mark(8,i,-2);mark(i,8,-2);}
+
+  // Alignment patterns (version 2+)
+  if(version>=2){
+    const pos=getAlignPos(version);
+    for(const r of pos)for(const c of pos){
+      if(m[r][c]==-1){
+        for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){
+          mark(r+i,c+j,(Math.abs(i)==2||Math.abs(j)==2)?1:(i==0&&j==0)?1:0);
+        }
+      }
+    }
+  }
+  return m;
+}
+
+function getAlignPos(v){
+  const t=[[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+  return t[v]||[];
+}
+
+function placeData(m,bits,version){
+  const n=SIZE[version];
+  let bi=0;
+  let up=true;
+  for(let col=n-1;col>=0;col-=2){
+    if(col==6)col--;
+    for(let row=0;row<n;row++){
+      const r=up?n-1-row:row;
+      for(let c=col;c>=col-1;c--){
+        if(m[r][c]==-1){
+          m[r][c]=bi<bits.length?bits[bi++]:0;
+        }
+      }
+    }
+    up=!up;
+  }
+}
+
+function applyMask(m,mask,version){
+  const n=SIZE[version];
+  const maskFn=[
+    (r,c)=>(r+c)%2==0,
+    (r,c)=>r%2==0,
+    (r,c)=>c%3==0,
+    (r,c)=>(r+c)%3==0,
+    (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2==0,
+    (r,c)=>(r*c)%2+(r*c)%3==0,
+    (r,c)=>((r*c)%2+(r*c)%3)%2==0,
+    (r,c)=>((r+c)%2+(r*c)%3)%2==0
+  ][mask];
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(m[r][c]!=-2&&maskFn(r,c))m[r][c]^=1;
+}
+
+function placeFormat(m,mask,version){
+  const n=SIZE[version];
+  // Format string for EC=M, mask
+  const fmt_strings=[
+    [1,0,1,0,1,0,0,0,0,1,0,0,1,0,1],
+    [1,0,1,0,0,1,1,0,1,1,1,0,0,1,0],
+    [1,0,1,1,1,1,0,1,1,0,1,1,0,1,0], // M mask 2... we need lookup
+  ];
+  // Precomputed format bits for EC level M (10), masks 0-7
+  const FMT=[
+    [1,0,1,0,1,0,0,0,0,1,0,0,1,0,1],
+    [1,0,1,0,0,1,1,0,1,1,1,0,0,1,0],
+    [1,0,1,1,1,1,0,1,1,0,0,0,1,1,1],
+    [1,0,1,1,0,0,1,1,0,0,1,0,0,0,0],
+    [1,0,0,0,1,0,1,1,0,1,0,1,1,1,0],
+    [1,0,0,0,0,1,0,1,1,1,1,1,0,0,1],
+    [1,0,0,1,1,1,1,0,1,0,1,1,1,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,1,0,1,0]
+  ];
+  const f=FMT[mask];
+  // Place format around top-left finder
+  const pos=[[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+  for(let i=0;i<15;i++)m[pos[i][0]][pos[i][1]]=f[i];
+  // Top-right and bottom-left
+  for(let i=0;i<7;i++)m[8][n-1-i]=f[i];
+  for(let i=7;i<15;i++)m[n-15+i][8]=f[i];
+}
+
+function bytesToBits(bytes){
+  const bits=[];
+  for(const b of bytes)for(let i=7;i>=0;i--)bits.push((b>>i)&1);
+  return bits;
+}
+
+function generate(text){
+  const data=[];
+  for(let i=0;i<text.length;i++)data.push(text.charCodeAt(i)&0xFF);
+  const version=getVersion(data.length);
+  const raw=makeBits(data,version);
+  const codewords=interleave(raw,version);
+  const bits=bytesToBits(codewords);
+  const m=makeMatrix(version);
+  placeData(m,bits,version);
+  applyMask(m,2,version); // mask 2
+  placeFormat(m,2,version);
+  return m;
+}
+
+w.QRCode={
+  toCanvas:function(text,opts,cb){
+    const size=(opts&&opts.width)||160;
+    try{
+      const m=generate(text);
+      const n=m.length;
+      const cell=Math.floor(size/n);
+      const cvs=document.createElement('canvas');
+      cvs.width=cvs.height=size;
+      const ctx=cvs.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);
+      ctx.fillStyle='#111';
+      for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(m[r][c]===1)ctx.fillRect(c*cell,r*cell,cell,cell);
+      cb(null,cvs);
+    }catch(e){
+      const d=document.createElement('div');
+      d.style.cssText=`width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;text-align:center;font:10px monospace;color:#888;border:1px solid #eee;padding:8px;box-sizing:border-box`;
+      d.textContent='Use Copy button to share';
+      cb(null,d);
+    }
+  }
+};
+})(window);
+
   </script>
 </head>
 <body>
@@ -847,7 +1015,8 @@
       d:  studentName,
       r:  reviewerType,
       dt: dateVal,
-      s:  {...scores},
+      // Only include criteria that were actually scored (non-null)
+      s:  Object.fromEntries(Object.entries(scores).filter(([,v]) => v !== null)),
       n:  Array.from(document.querySelectorAll('.notes-row textarea')).map(t => t.value.trim()),
       g:  getOverallGrade().letter,
     };
