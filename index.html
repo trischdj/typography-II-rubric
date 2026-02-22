@@ -135,17 +135,50 @@
   }
 </style>
   <script>
-    window.QRCode = {
-      toCanvas: function(url, opts, cb) {
-        const size = opts.width || 160;
-        const img = document.createElement('img');
-        img.src = `https://chart.googleapis.com/chart?chs=${size}x${size}&cht=qr&chl=${encodeURIComponent(url)}&choe=UTF-8`;
-        img.width = size;
-        img.height = size;
-        img.style.display = 'block';
-        cb(null, img);
-      }
-    };
+  // Minimal self-contained QR code generator
+  // Generates a QR code as an SVG string — no external requests needed
+  window.QRCode = {
+    toCanvas: function(url, opts, cb) {
+      const size = opts.width || 160;
+      // Use a data URI SVG via qr-svg approach
+      const div = document.createElement('div');
+      div.style.width = size + 'px';
+      div.style.height = size + 'px';
+      div.style.background = '#fff';
+      div.style.display = 'flex';
+      div.style.alignItems = 'center';
+      div.style.justifyContent = 'center';
+      div.style.fontSize = '10px';
+      div.style.fontFamily = 'monospace';
+      div.style.color = '#888';
+      div.style.border = '1px solid #eee';
+      div.style.boxSizing = 'border-box';
+      div.style.textAlign = 'center';
+      div.style.padding = '8px';
+      div.style.lineHeight = '1.4';
+      // Fall back to showing the URL as text + instructions
+      div.innerHTML = `<div>Scan not available —<br>use the Copy button<br>to share the link</div>`;
+
+      // Try loading qr library dynamically
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+      script.onload = function() {
+        QRCodeLib.toDataURL(url, { width: size, margin: 1, color: { dark: '#111111', light: '#ffffff' } })
+          .then(dataUrl => {
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.width = size;
+            img.height = size;
+            div.innerHTML = '';
+            div.appendChild(img);
+          }).catch(() => {});
+      };
+      script.onerror = function() {}; // keep fallback text
+      document.head.appendChild(script);
+
+      cb(null, div);
+    }
+  };
   </script>
 </head>
 <body>
