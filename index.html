@@ -15,7 +15,7 @@
     --c1-bg:#8a3800;--c1-fg:#fff;--c1-mid:#f5d8c0;
     --c0-bg:#2a2a2a;--c0-fg:#fff;--c0-mid:#e0e0e0;
   }
-  body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;}
+  body{background:#f4f4f4;color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;padding-bottom:70px;}
 
   /* MASTHEAD */
   .masthead{background:var(--ink);color:var(--paper);padding:2rem 2.5rem 1.75rem;display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:end;border-bottom:4px solid var(--ink);}
@@ -629,7 +629,7 @@ w.QRCode={
 </div>
 
 <!-- Credits & Citation -->
-<div style="background:#f4f4f4;border-top:1px solid #ddd;padding:1.25rem 2.5rem;display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;align-items:flex-start;">
+<div style="background:#f4f4f4;border-top:1px solid #ddd;padding:1.25rem 2.5rem 1.5rem;display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;align-items:flex-start;margin-bottom:0;">
   <div style="flex:1;min-width:220px;">
     <div style="font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:#aaa;margin-bottom:.35rem;">Typographic Framework</div>
     <div style="font-family:'DM Sans',sans-serif;font-size:.72rem;color:#555;line-height:1.55;">
@@ -637,12 +637,16 @@ w.QRCode={
       <a href="https://doi.org/10.1177/1470357205053403" target="_blank" style="color:#2e5f8a;text-decoration:none;display:block;margin-top:.2rem;font-family:'DM Mono',monospace;font-size:.62rem;">doi:10.1177/1470357205053403</a>
     </div>
   </div>
-  <div style="flex:1;min-width:180px;text-align:right;">
+  <div style="flex:1;min-width:220px;text-align:right;">
     <div style="font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:#aaa;margin-bottom:.35rem;">Design Check</div>
-    <div style="font-family:'DM Sans',sans-serif;font-size:.72rem;color:#555;line-height:1.55;">
+    <div style="font-family:'DM Sans',sans-serif;font-size:.72rem;color:#555;line-height:1.7;">
       A Monk &amp; Robot Collaboration<br>
       <a href="mailto:trischdj@ucmail.uc.edu" style="color:#2e5f8a;text-decoration:none;font-family:'DM Mono',monospace;font-size:.62rem;">trischdj@ucmail.uc.edu</a><br>
-      <span style="font-family:'DM Mono',monospace;font-size:.62rem;color:#aaa;">Open source · Data stays yours</span>
+      <span style="font-family:'DM Mono',monospace;font-size:.62rem;color:#aaa;">Open source · Data stays yours</span><br>
+      <span style="font-size:.68rem;color:#888;margin-top:.4rem;display:inline-block;">
+        Inspired by the solarpunk future of
+        <a href="https://us.macmillan.com/series/monkrobot" target="_blank" style="color:#2e5f8a;text-decoration:none;">Becky Chambers' Monk &amp; Robot Series</a>
+      </span>
     </div>
   </div>
 </div>
