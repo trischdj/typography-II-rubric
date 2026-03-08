@@ -118,6 +118,19 @@
   .btn.primary{background:white;border-color:white;color:var(--ink);}
   .btn.primary:hover{background:#eee;}
 
+  /* SELF-EVALUATION */
+  .self-eval-header{background:#f9f9f9;}
+  .self-eval-badge{font-family:'DM Mono',monospace;font-size:.52rem;letter-spacing:.15em;text-transform:uppercase;color:#bbb;border:1px solid #ddd;padding:.25rem .6rem;display:inline-block;}
+  .time-btns{display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end;max-width:220px;}
+  .time-btn{padding:.3rem .65rem;border:1px solid var(--rule);background:var(--faint);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;color:var(--dim);transition:all .1s;white-space:nowrap;user-select:none;}
+  .time-btn:hover{border-color:var(--ink);color:var(--ink);background:white;}
+  .time-btn.selected{background:var(--c3-bg);border-color:var(--c3-bg);color:var(--c3-fg);font-weight:700;}
+  .reflection-prompt{font-size:.77rem;color:#777;line-height:1.65;margin-bottom:.5rem;}
+  .madlib-wrap{padding:.85rem 1rem;background:#fafafa;border:1px solid #eee;line-height:2.4;font-size:.85rem;color:#222;}
+  .madlib-input{border:none;border-bottom:2px solid var(--c3-bg);background:transparent;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--ink);padding:.05rem .25rem;outline:none;min-width:3ch;vertical-align:baseline;transition:border-color .15s;}
+  .madlib-input::placeholder{color:var(--c3-bg);font-style:italic;opacity:1;}
+  .madlib-input:focus{border-bottom-color:var(--ink);}
+
   @media print{
     .action-bar{display:none!important;}
     body{background:white;}
@@ -348,6 +361,7 @@ w.QRCode={
 })(window);
 
   </script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -359,7 +373,6 @@ w.QRCode={
   <div class="grade-display">
     <span class="grade-label-sm">Overall</span>
     <div class="grade-pill" id="grand-pill">not yet scored</div>
-    <div class="grade-pct" id="grand-pct"></div>
   </div>
 </div>
 
@@ -382,7 +395,7 @@ w.QRCode={
     <label>Reviewer</label>
     <select id="meta-reviewer" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font-family:'DM Sans',sans-serif;font-size:.88rem;color:var(--ink);padding:.15rem 0;outline:none;width:100%;">
       <option value="">— select —</option>
-      <option value="Designer">Designer</option>
+      <option value="Self-Evaluation">Self-Evaluation</option>
       <option value="Peer">Peer</option>
       <option value="Professor">Professor</option>
     </select>
@@ -391,11 +404,11 @@ w.QRCode={
 </div>
 
 <div class="scale-bar">
-  <div class="scale-cell s4"><span class="sc-num">4</span><span class="sc-name">Exceeds</span><span class="sc-pct">4.0 qpts · A</span><div class="sc-desc">Work of Excellent Quality</div></div>
-  <div class="scale-cell s3"><span class="sc-num">3</span><span class="sc-name">Meets</span><span class="sc-pct">3.0 qpts · B</span><div class="sc-desc">Work of Good Quality</div></div>
-  <div class="scale-cell s2"><span class="sc-num">2</span><span class="sc-name">Needs Revision</span><span class="sc-pct">2.0 qpts · C</span><div class="sc-desc">Work of Satisfactory Quality</div></div>
-  <div class="scale-cell s1"><span class="sc-num">1</span><span class="sc-name">Insufficient Evidence</span><span class="sc-pct">1.0 qpts · D</span><div class="sc-desc">Work of Poor Quality</div></div>
   <div class="scale-cell s0"><span class="sc-num">0</span><span class="sc-name">Not Submitted</span><span class="sc-pct">0.0 qpts · F</span><div class="sc-desc">Failure to meet minimum standards</div></div>
+  <div class="scale-cell s1"><span class="sc-num">1</span><span class="sc-name">Insufficient Evidence</span><span class="sc-pct">1.0 qpts · D</span><div class="sc-desc">Work of Poor Quality</div></div>
+  <div class="scale-cell s2"><span class="sc-num">2</span><span class="sc-name">Needs Revision</span><span class="sc-pct">2.0 qpts · C</span><div class="sc-desc">Work of Satisfactory Quality</div></div>
+  <div class="scale-cell s3"><span class="sc-num">3</span><span class="sc-name">Meets</span><span class="sc-pct">3.0 qpts · B</span><div class="sc-desc">Work of Good Quality</div></div>
+  <div class="scale-cell s4"><span class="sc-num">4</span><span class="sc-name">Exceeds</span><span class="sc-pct">4.0 qpts · A</span><div class="sc-desc">Work of Excellent Quality</div></div>
 </div>
 
 <div class="content">
@@ -626,6 +639,47 @@ w.QRCode={
   <div class="notes-row"><label>Notes</label><textarea placeholder="Observations or feedback on Craft…"></textarea></div>
 </div>
 
+<!-- SELF-EVALUATION — not scored -->
+<div class="section">
+  <div class="section-header self-eval-header">
+    <div>
+      <div class="section-title" style="color:#777;">Self-Evaluation</div>
+      <div class="section-subtitle">For reflection only — these responses do not affect your score.</div>
+    </div>
+    <div style="text-align:right;padding-top:.2rem;"><span class="self-eval-badge">Not Scored</span></div>
+  </div>
+
+  <div class="criterion">
+    <div>
+      <div class="criterion-label">Time Investment</div>
+      <div class="criterion-text">Approximately how much time did you invest in this project outside of class per week?</div>
+    </div>
+    <div class="score-wrap">
+      <div class="time-btns" id="time-btns">
+        <span class="time-btn" onclick="selectTime(this)">1–3 hrs</span>
+        <span class="time-btn" onclick="selectTime(this)">3–6 hrs</span>
+        <span class="time-btn" onclick="selectTime(this)">6–9 hrs</span>
+        <span class="time-btn" onclick="selectTime(this)">9–12 hrs</span>
+        <span class="time-btn" onclick="selectTime(this)">12–15 hrs</span>
+        <span class="time-btn" onclick="selectTime(this)">15+ hrs</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes-row">
+    <label>Reflection Letter</label>
+    <div class="madlib-wrap">
+      On this project, I developed <input class="madlib-input" id="ml-1" placeholder="new skills, habits, or ways of thinking"> and plan to carry them forward by <input class="madlib-input" id="ml-2" placeholder="specific future actions">. I focused most of my effort on <input class="madlib-input" id="ml-3" placeholder="area of focus">, though the hidden labor that shaped my process most was <input class="madlib-input" id="ml-4" placeholder="unexpected work or challenge">. My perspective shifted in that <input class="madlib-input" id="ml-5" placeholder="how thinking expanded or changed">, mainly because <input class="madlib-input" id="ml-6" placeholder="cause of that shift">. I contributed to studio culture by <input class="madlib-input" id="ml-7" placeholder="contribution">, and the feedback that changed my work most was <input class="madlib-input" id="ml-8" placeholder="specific feedback">. For these reasons, I believe I earned a <input class="madlib-input" id="ml-9" placeholder="grade">.
+    </div>
+  </div>
+
+  <div class="notes-row">
+    <label>Anything Else?</label>
+    <div class="reflection-prompt">Is there anything else you would like to add, including ways to improve this assignment for future students?</div>
+    <textarea id="anything-else-text" placeholder="Optional…" style="min-height:80px;"></textarea>
+  </div>
+</div>
+
 </div>
 
 <!-- Credits & Citation -->
@@ -677,6 +731,10 @@ w.QRCode={
       <button onclick="copyShareUrl()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;padding:.4rem .75rem;border:1px solid #222;background:#222;color:white;cursor:pointer;">Copy</button>
     </div>
     <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:#bbb;margin-bottom:1.25rem;">Anyone with this link can view the results</div>
+    <div style="display:flex;gap:.5rem;justify-content:center;margin-bottom:.75rem;">
+      <button onclick="downloadResultsImage()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;padding:.4rem .85rem;border:1px solid #222;background:#222;color:white;cursor:pointer;">Download Image</button>
+      <button id="share-img-btn" onclick="shareResultsImage()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;padding:.4rem .85rem;border:1px solid #555;background:white;color:#333;cursor:pointer;">Share / AirDrop</button>
+    </div>
     <button onclick="closeShareOverlay()" style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem 1.25rem;border:1px solid #ccc;background:white;cursor:pointer;">Close</button>
   </div>
 </div>
@@ -820,7 +878,6 @@ w.QRCode={
     const grandRounded = Math.round(grandScaled * 10) / 10;
 
     const pill = document.getElementById('grand-pill');
-    const pctEl = document.getElementById('grand-pct');
     const barPts = document.getElementById('bar-pts');
     const barPill = document.getElementById('bar-pill');
     const barSub = document.getElementById('bar-sub');
@@ -828,7 +885,6 @@ w.QRCode={
     if (anyScoredGlobal) {
       pill.textContent = `${overall.label} · ${overall.letter}`;
       pill.className = `grade-pill ${overall.cls}`;
-      pctEl.textContent = `${grandRounded} / 100 scored pts`;
       barPts.textContent = `${grandRounded} / 100`;
       barPill.textContent = `${overall.label} · ${overall.letter}`;
       barPill.className = `bar-pill ${overall.cls}`;
@@ -836,7 +892,6 @@ w.QRCode={
     } else {
       pill.textContent = 'not yet scored';
       pill.className = 'grade-pill';
-      pctEl.textContent = '';
       barPts.textContent = '— / 100';
       barPill.textContent = '—';
       barPill.className = 'bar-pill';
@@ -844,12 +899,35 @@ w.QRCode={
     }
   }
 
+  // ── Mad Lib Reflection ──
+  function resizeMadlib(el) {
+    const len = Math.max(Math.ceil(el.placeholder.length * 0.9), el.value.length + 1, 3);
+    el.style.width = len + 'ch';
+  }
+  document.querySelectorAll('.madlib-input').forEach(el => {
+    resizeMadlib(el);
+    el.addEventListener('input', () => resizeMadlib(el));
+  });
+
+  function getReflectionText() {
+    const v = id => document.getElementById(id)?.value?.trim() || '___';
+    return `On this project, I developed ${v('ml-1')} and plan to carry them forward by ${v('ml-2')}. I focused most of my effort on ${v('ml-3')}, though the hidden labor that shaped my process most was ${v('ml-4')}. My perspective shifted in that ${v('ml-5')}, mainly because ${v('ml-6')}. I contributed to studio culture by ${v('ml-7')}, and the feedback that changed my work most was ${v('ml-8')}. For these reasons, I believe I earned a ${v('ml-9')}.`;
+  }
+
+  // ── Time Investment ──
+  function selectTime(el) {
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
   // ── Clear ──
   function clearAll() {
     if (!confirm('Clear all scores and notes?')) return;
     for (const k of Object.keys(scores)) scores[k] = null;
     document.querySelectorAll('.score-btn').forEach(b => b.className = 'score-btn');
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
     document.querySelectorAll('textarea').forEach(t => t.value = '');
+    document.querySelectorAll('.madlib-input').forEach(i => { i.value = ''; resizeMadlib(i); });
     document.querySelectorAll('.threshold-check input[type=checkbox]').forEach(cb => {
       cb.checked = false;
       cb.closest('.threshold-check').classList.remove('met');
@@ -861,7 +939,6 @@ w.QRCode={
     document.querySelectorAll('[data-sec-grade]').forEach(el => { el.textContent = ''; el.className = 'tally-grade'; });
     document.getElementById('grand-pill').textContent = 'not yet scored';
     document.getElementById('grand-pill').className = 'grade-pill';
-    document.getElementById('grand-pct').textContent = '';
     document.getElementById('bar-pts').textContent = '— / 100';
     document.getElementById('bar-pill').textContent = '—';
     document.getElementById('bar-pill').className = 'bar-pill';
@@ -997,6 +1074,9 @@ w.QRCode={
       typographyNotes:    getNotes(2),
       communicationNotes: getNotes(3),
       craftNotes:         getNotes(4),
+      timeInvestment:     document.querySelector('.time-btn.selected')?.textContent || '',
+      reflection:         getReflectionText(),
+      anythingElse:       document.getElementById('anything-else-text')?.value?.trim() || '',
     };
 
     try {
@@ -1069,6 +1149,106 @@ w.QRCode={
 
   function closeShareOverlay() {
     document.getElementById('share-overlay').style.display = 'none';
+  }
+
+  // ── Image Download / Share ──
+  function buildResultsCardEl() {
+    const student  = document.getElementById('meta-student')?.value?.trim() || '—';
+    const project  = document.getElementById('meta-project')?.value || '';
+    const reviewer = document.getElementById('meta-reviewer')?.value || '';
+    const dateVal  = document.getElementById('meta-date')?.value || '';
+    const overall  = getOverallGrade();
+    const gc       = gradeColor(overall.letter);
+
+    let sectionsHtml = '';
+    for (const sec of SEC_ORDER) {
+      const scored = Object.entries(scores)
+        .filter(([id, v]) => CRIT_TO_SEC[id] === sec && v !== null);
+      if (!scored.length) continue;
+
+      const avg = scored.reduce((a, [, v]) => a + v, 0) / scored.length;
+      const g   = gradeFromPct(avg * 25);
+
+      const rows = scored.map(([id, val]) => `
+        <div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f2f2f2;">
+          <span style="font-size:.78rem;color:#555;">${CRIT_LABELS[id] || id}</span>
+          <span style="font-family:monospace;font-weight:700;font-size:.9rem;">${val}</span>
+        </div>`).join('');
+
+      sectionsHtml += `
+        <div style="margin-bottom:1.25rem;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:.4rem;">
+            <span style="font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;">${SEC_LABELS[sec]}</span>
+            <span style="font-family:monospace;font-size:.75rem;font-weight:700;color:${gc};">${g.letter}</span>
+          </div>
+          ${rows}
+        </div>`;
+    }
+
+    let grandScaled = 0, scoredCount = 0;
+    for (const s of SEC_ORDER) {
+      const pts = getSectionScaledPts(s);
+      if (pts !== null) { grandScaled += pts; scoredCount++; }
+    }
+    const grandRounded = Math.round(grandScaled * 10) / 10;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:500px;padding:1rem;background:#f4f4f4;';
+    wrapper.innerHTML = `
+      <div style="background:white;max-width:460px;width:100%;box-shadow:0 2px 16px rgba(0,0,0,.09);">
+        <div style="background:#111;padding:1.5rem 1.75rem;">
+          <div style="font-family:monospace;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-bottom:.3rem;">Design Check · Results</div>
+          <div style="font-size:1.35rem;font-weight:700;color:white;margin-bottom:.2rem;">${student}</div>
+          <div style="font-family:monospace;font-size:.7rem;color:#666;">${[project, reviewer, dateVal].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="background:${gc};padding:.9rem 1.75rem;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:.82rem;font-weight:700;color:white;letter-spacing:.04em;text-transform:uppercase;">Overall · ${scoredCount > 0 ? grandRounded + ' / 100' : '—'}</span>
+          <span style="font-family:monospace;font-size:1.75rem;font-weight:700;color:white;">${overall.letter}</span>
+        </div>
+        <div style="padding:1.25rem 1.75rem 0;">${sectionsHtml || '<div style="font-family:monospace;font-size:.75rem;color:#bbb;padding:.5rem 0;">No scores recorded yet.</div>'}</div>
+        <div style="padding:.6rem 1.75rem;border-top:1px solid #eee;font-family:monospace;font-size:.58rem;color:#ccc;text-align:center;">Design Check</div>
+      </div>`;
+    return wrapper;
+  }
+
+  async function captureResultsCanvas() {
+    const wrapper = buildResultsCardEl();
+    document.body.appendChild(wrapper);
+    const inner = wrapper.firstElementChild;
+    const canvas = await html2canvas(inner, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    document.body.removeChild(wrapper);
+    return canvas;
+  }
+
+  async function downloadResultsImage() {
+    const canvas  = await captureResultsCanvas();
+    const student = document.getElementById('meta-student')?.value?.trim() || 'results';
+    const project = document.getElementById('meta-project')?.value?.trim() || '';
+    const link    = document.createElement('a');
+    link.download = `${student}${project ? '-' + project : ''}-design-check.png`.replace(/\s+/g, '-');
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  async function shareResultsImage() {
+    const canvas   = await captureResultsCanvas();
+    const student  = document.getElementById('meta-student')?.value?.trim() || 'results';
+    const filename = `${student}-design-check.png`.replace(/\s+/g, '-');
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], filename, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Design Check Results' }); }
+        catch(e) { if (e.name !== 'AbortError') downloadResultsImage(); }
+      } else {
+        downloadResultsImage();
+      }
+    });
+  }
+
+  // Hide Share/AirDrop button if Web Share API not available
+  if (!navigator.share) {
+    const btn = document.getElementById('share-img-btn');
+    if (btn) btn.style.display = 'none';
   }
 
   // ── Read-only Results View ─────────────────────────────────────────────
