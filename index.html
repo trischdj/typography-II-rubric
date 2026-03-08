@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Typography · Checkpoint v1</title>
+<title>Typography · Design Check</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -130,6 +130,19 @@
   .madlib-input{border:none;border-bottom:2px solid var(--c3-bg);background:transparent;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--ink);padding:.05rem .25rem;outline:none;min-width:3ch;vertical-align:baseline;transition:border-color .15s;}
   .madlib-input::placeholder{color:var(--c3-bg);font-style:italic;opacity:1;}
   .madlib-input:focus{border-bottom-color:var(--ink);}
+
+  /* CHANGELOG */
+  .changelog-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:flex-start;justify-content:center;padding:3rem 1rem;overflow-y:auto;}
+  .changelog-overlay.open{display:flex;}
+  .changelog-box{background:white;max-width:520px;width:100%;padding:2rem 2.5rem;}
+  .changelog-header{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:#aaa;margin-bottom:.5rem;}
+  .changelog-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;}
+  .changelog-entry{margin-bottom:1.5rem;}
+  .changelog-date{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--c3-bg);margin-bottom:.4rem;}
+  .changelog-entry ul{list-style:none;padding:0;}
+  .changelog-entry ul li{font-size:.8rem;color:#444;line-height:1.5;padding:.2rem 0;border-bottom:1px solid #f2f2f2;display:flex;gap:.5rem;}
+  .changelog-entry ul li::before{content:'–';color:#bbb;flex-shrink:0;}
+  .changelog-close{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem 1.25rem;border:1px solid #ccc;background:white;cursor:pointer;margin-top:1rem;}
 
   @media print{
     .action-bar{display:none!important;}
@@ -367,7 +380,7 @@ w.QRCode={
 
 <div class="masthead">
   <div>
-    <div class="masthead-label">Typography Course · Checkpoint — v1</div>
+    <div class="masthead-label">Typography Course · Design Check</div>
     <h1>Design <em>Check</em></h1>
   </div>
   <div class="grade-display">
@@ -696,7 +709,7 @@ w.QRCode={
     <div style="font-family:'DM Sans',sans-serif;font-size:.72rem;color:#555;line-height:1.7;">
       A Monk &amp; Robot Collaboration<br>
       <a href="mailto:trischdj@ucmail.uc.edu" style="color:#2e5f8a;text-decoration:none;font-family:'DM Mono',monospace;font-size:.62rem;">trischdj@ucmail.uc.edu</a><br>
-      <span style="font-family:'DM Mono',monospace;font-size:.62rem;color:#aaa;">Open source · Data stays yours</span><br>
+      <span style="font-family:'DM Mono',monospace;font-size:.62rem;color:#aaa;">Open source · Data stays yours</span> · <button onclick="openChangelog()" style="font-family:'DM Mono',monospace;font-size:.62rem;color:#2e5f8a;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Updates</button><br>
       <span style="font-size:.68rem;color:#888;margin-top:.4rem;display:inline-block;">
         Inspired by the solarpunk future of
         <a href="https://us.macmillan.com/series/monkrobot" target="_blank" style="color:#2e5f8a;text-decoration:none;">Becky Chambers' Monk &amp; Robot Series</a>
@@ -716,6 +729,48 @@ w.QRCode={
     <button class="btn" onclick="window.print()">Save PDF</button>
     <button class="btn" onclick="shareResults()">Share Results</button>
     <button class="btn primary" id="notion-btn" onclick="submitToNotion()">Submit</button>
+  </div>
+</div>
+
+<!-- Changelog overlay -->
+<div id="changelog-overlay" class="changelog-overlay" onclick="if(event.target===this)closeChangelog()">
+  <div class="changelog-box">
+    <div class="changelog-header">Typography · Design Check</div>
+    <div class="changelog-title">Updates</div>
+
+    <div class="changelog-entry">
+      <div class="changelog-date">March 2026</div>
+      <ul>
+        <li>Added Self-Evaluation section — time investment, Mad Lib reflection letter, and open-ended feedback field</li>
+        <li>Mad Lib reflection compiles into a single paragraph sent to Google Sheets</li>
+        <li>Added Download Image and Share / AirDrop to the Share Results overlay</li>
+        <li>Scale key reordered 0 → 4 to match the scoring button order</li>
+        <li>Reviewer option renamed from "Designer" to "Self-Evaluation"</li>
+        <li>Points removed from overall grade display in the header</li>
+        <li>Dropped version label — tool is now simply "Design Check"</li>
+      </ul>
+    </div>
+
+    <div class="changelog-entry">
+      <div class="changelog-date">February 2026</div>
+      <ul>
+        <li>Submissions routed to Google Sheets via Google Drive service account</li>
+        <li>Share Results generates a unique URL and QR code for each scored rubric</li>
+        <li>Added inline QR code encoder — no external dependencies</li>
+      </ul>
+    </div>
+
+    <div class="changelog-entry">
+      <div class="changelog-date">January 2026</div>
+      <ul>
+        <li>Initial release — Ideation, Iteration, Typography, Communication, and Craft sections</li>
+        <li>Threshold gates link quantity requirements to quality scoring</li>
+        <li>Weighted scoring scales each section into a 100-point total</li>
+        <li>Action bar shows live grade as criteria are scored</li>
+      </ul>
+    </div>
+
+    <button class="changelog-close" onclick="closeChangelog()">Close</button>
   </div>
 </div>
 
@@ -1149,6 +1204,14 @@ w.QRCode={
 
   function closeShareOverlay() {
     document.getElementById('share-overlay').style.display = 'none';
+  }
+
+  // ── Changelog ──
+  function openChangelog() {
+    document.getElementById('changelog-overlay').classList.add('open');
+  }
+  function closeChangelog() {
+    document.getElementById('changelog-overlay').classList.remove('open');
   }
 
   // ── Image Download / Share ──
