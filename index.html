@@ -693,6 +693,29 @@ w.QRCode={
   </div>
 </div>
 
+<!-- CO-DESIGN FEEDBACK — not scored -->
+<div class="section">
+  <div class="section-header self-eval-header">
+    <div>
+      <div class="section-title" style="color:#777;">Co-Design Feedback</div>
+      <div class="section-subtitle">We spent three sessions co-designing this class, which led to changes in the Canvas interface, adjusted learning outcomes, and the Design Check rubric. I'd love your feedback on that process.</div>
+    </div>
+    <div style="text-align:right;padding-top:.2rem;"><span class="self-eval-badge">Not Scored</span></div>
+  </div>
+
+  <div class="notes-row">
+    <label>Looking Back</label>
+    <div class="reflection-prompt">Looking back, what did that process actually do — for you, for the class, for our studio culture? Please include the good, the frustrating, all of it.</div>
+    <textarea id="codesign-reflection" placeholder="Optional…" style="min-height:80px;"></textarea>
+  </div>
+
+  <div class="notes-row">
+    <label>Looking Forward</label>
+    <div class="reflection-prompt">What would you change about what we created together for future students?</div>
+    <textarea id="codesign-changes" placeholder="Optional…" style="min-height:80px;"></textarea>
+  </div>
+</div>
+
 </div>
 
 <!-- Credits & Citation -->
@@ -737,6 +760,13 @@ w.QRCode={
   <div class="changelog-box">
     <div class="changelog-header">Typography · Design Check</div>
     <div class="changelog-title">Updates</div>
+
+    <div class="changelog-entry">
+      <div class="changelog-date">April 2026</div>
+      <ul>
+        <li>Added Co-Design Feedback section — two open-ended fields for student reflection on the co-design process (Looking Back and Looking Forward), sent to Google Sheets</li>
+      </ul>
+    </div>
 
     <div class="changelog-entry">
       <div class="changelog-date">March 2026</div>
@@ -1132,6 +1162,8 @@ w.QRCode={
       timeInvestment:     document.querySelector('.time-btn.selected')?.textContent || '',
       reflection:         getReflectionText(),
       anythingElse:       document.getElementById('anything-else-text')?.value?.trim() || '',
+      codesignReflection: document.getElementById('codesign-reflection')?.value?.trim() || '',
+      codesignChanges:    document.getElementById('codesign-changes')?.value?.trim() || '',
     };
 
     try {

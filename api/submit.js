@@ -35,7 +35,8 @@ export default async function handler(req, res) {
     overallGrade, overallScore,
     ideation, iteration, typography, communication, craft,
     ideationNotes, iterationNotes, typographyNotes, communicationNotes, craftNotes,
-    timeInvestment, reflection, anythingElse
+    timeInvestment, reflection, anythingElse,
+    codesignReflection, codesignChanges
   } = req.body;
 
   if (!student) return res.status(400).json({ error: 'Student name is required' });
@@ -69,7 +70,8 @@ export default async function handler(req, res) {
             'Ideation', 'Iteration', 'Typography', 'Communication', 'Craft',
             'Ideation Notes', 'Iteration Notes', 'Typography Notes',
             'Communication Notes', 'Craft Notes',
-            'Time Investment', 'Reflection', 'Anything Else'
+            'Time Investment', 'Reflection', 'Anything Else',
+            'Co-Design: Looking Back', 'Co-Design: Looking Forward'
           ]]
         }
       });
@@ -94,6 +96,8 @@ export default async function handler(req, res) {
       timeInvestment || '',
       reflection || '',
       anythingElse || '',
+      codesignReflection || '',
+      codesignChanges || '',
     ];
 
     await sheets.spreadsheets.values.append({
